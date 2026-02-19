@@ -53,6 +53,11 @@
             0% { background-color: rgba(59, 130, 246, 0.4); }
             100% { background-color: transparent; }
         }
+
+        .tab-active {
+            color: #f97316;
+            border-bottom: 2px solid #f97316;
+        }
     </style>
 </head>
 <body class="p-4 max-w-lg mx-auto pb-20">
@@ -75,7 +80,7 @@
             BDS CR CAMPAIGN
         </h1>
         <p class="text-[9px] font-medium leading-relaxed text-slate-400 mt-2 px-4 italic">
-            These are Unofficial Weekly Numbers. Official numbers will be posted as normal when payroll is being processed taking Quality and other factors into account.
+            Unofficial Numbers. Updates every 30 seconds.
         </p>
     </div>
 
@@ -94,9 +99,13 @@
         </div>
     </div>
 
-    <div class="flex justify-between items-end mb-4 px-2">
-        <h2 class="header-font text-[10px] font-black tracking-widest text-slate-500 uppercase italic">Current Rankings</h2>
-        <div class="text-[8px] text-slate-600 font-bold uppercase italic">Weekly Sprint</div>
+    <div class="flex border-b border-white/10 mb-6">
+        <button onclick="switchTab('weekly')" id="tab-weekly" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest tab-active transition-all">
+            Weekly Sprint
+        </button>
+        <button onclick="switchTab('daily')" id="tab-daily" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-all">
+            Daily Performance
+        </button>
     </div>
 
     <div id="leaderboard" class="space-y-3"></div>
@@ -104,6 +113,7 @@
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbyQlZ1H4TiC2Ohbw8IQNdxiCw0-bUMqgeH6wkmSzPdiJzps4d9aOn7YnWWdjraTli7DeQ/exec';
         let agents = [];
+        let currentView = 'weekly'; // Default view
 
         async function updateDashboard() {
             const btn = document.getElementById('refresh-btn');
@@ -118,10 +128,13 @@
                     return;
                 }
 
+                // Check for updates to trigger highlight animation
                 if (agents.length > 0) {
                     newData.forEach(nA => {
-                        const oA = agents.find(o => o.name === nA.name);
-                        if (oA && nA.leads > oA.leads) nA.lastUpdated = true;
+                        const oA = agents.find(o => cleanName(o.name) === cleanName(nA.name));
+                        const newVal = nA.leads || 0;
+                        const oldVal = oA ? oA.leads : 0;
+                        if (oA && newVal > oldVal) nA.lastUpdated = true;
                     });
                 }
 
@@ -129,13 +142,19 @@
                 render();
                 
                 const now = new Date();
-                document.getElementById('timestamp').innerText = `Sheet Updated: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
+                document.getElementById('timestamp').innerText = `Updated: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
                 
             } catch (e) {
                 document.getElementById('timestamp').innerText = "Sync Offline";
             } finally {
                 setTimeout(() => btn.classList.remove('spin-anim'), 1000);
             }
+        }
+
+        function cleanName(name) {
+            if (!name) return "Unknown";
+            // Removes ID numbers like "- 4346" from names
+            return name.split('-')[0].trim();
         }
 
         function getLevel(l) {
@@ -146,19 +165,48 @@
             return { title: "ROOKIE", class: "slate-tier", icon: "fa-shield", color: "text-slate-500" };
         }
 
+        function switchTab(view) {
+            currentView = view;
+            document.getElementById('tab-weekly').classList.toggle('tab-active', view === 'weekly');
+            document.getElementById('tab-weekly').classList.toggle('text-slate-500', view !== 'weekly');
+            document.getElementById('tab-daily').classList.toggle('tab-active', view === 'daily');
+            document.getElementById('tab-daily').classList.toggle('text-slate-500', view !== 'daily');
+            render();
+        }
+
         function render() {
             const board = document.getElementById('leaderboard');
-            agents.sort((a, b) => b.leads - a.leads);
-
             let totalLeads = 0;
             let masters = 0;
             let activeReps = 0;
 
-            board.innerHTML = agents.map((agent, index) => {
-                const lvl = getLevel(agent.leads);
-                totalLeads += agent.leads;
-                if(agent.leads >= 12) masters++;
-                if(agent.leads > 0) activeReps++;
+            // Sorting logic
+            const sortedAgents = [...agents].sort((a, b) => {
+                if (currentView === 'daily') {
+                    // Sort by XFER (daily)
+                    const valA = Number(a.XFER || a.daily || 0);
+                    const valB = Number(b.XFER || b.daily || 0);
+                    return valB - valA;
+                } else {
+                    // Sort by leads (weekly)
+                    return (b.leads || 0) - (a.leads || 0);
+                }
+            });
+
+            board.innerHTML = sortedAgents.map((agent, index) => {
+                const name = cleanName(agent.name || agent["User Name"]);
+                const weeklyLeads = Number(agent.leads || 0);
+                const dailyLeads = Number(agent.XFER || agent.daily || 0);
+                const displayVal = currentView === 'daily' ? dailyLeads : weeklyLeads;
+                const lvl = getLevel(weeklyLeads);
+
+                // Update top stats (always based on weekly)
+                totalLeads += weeklyLeads;
+                if(weeklyLeads >= 12) masters++;
+                if(weeklyLeads > 0) activeReps++;
+
+                // If in daily view and agent has 0 today, we can skip or show them at the bottom
+                if (currentView === 'daily' && displayVal === 0) return '';
 
                 return `
                     <div class="glass p-4 rounded-xl flex justify-between items-center transition-all duration-700 ${lvl.class} ${agent.lastUpdated ? 'row-update' : ''}">
@@ -167,7 +215,7 @@
                                 ${(index + 1).toString().padStart(2, '0')}
                             </span>
                             <div>
-                                <div class="font-bold text-sm tracking-tight text-white uppercase">${agent.name}</div>
+                                <div class="font-bold text-sm tracking-tight text-white uppercase">${name}</div>
                                 <div class="flex items-center gap-1 mt-0.5">
                                     <i class="fas ${lvl.icon} text-[8px] ${lvl.color}"></i>
                                     <div class="text-[8px] font-black uppercase tracking-widest ${lvl.color}">${lvl.title} LEVEL</div>
@@ -175,8 +223,10 @@
                             </div>
                         </div>
                         <div class="text-right">
-                            <div class="text-2xl font-black text-white leading-none">${agent.leads}</div>
-                            <div class="text-[7px] text-slate-500 uppercase font-bold tracking-tighter mt-1">Transfers</div>
+                            <div class="text-2xl font-black ${currentView === 'daily' ? 'text-orange-400' : 'text-white'} leading-none">${displayVal}</div>
+                            <div class="text-[7px] text-slate-500 uppercase font-bold tracking-tighter mt-1">
+                                ${currentView === 'daily' ? 'Today' : 'Total'}
+                            </div>
                         </div>
                     </div>
                 `;
