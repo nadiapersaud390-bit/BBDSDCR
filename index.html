@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Level Up Dashboard | Live Performance</title>
+    <title>BDS CR Campaign | Live Performance</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -45,11 +45,6 @@
             backdrop-filter: blur(10px);
         }
 
-        .gold-progress {
-            background: linear-gradient(90deg, #ca8a04, #facc15, #eab308);
-            box-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
-        }
-
         .spin-anim { animation: spin 1s linear; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
@@ -75,25 +70,13 @@
         </button>
     </div>
 
-    <div class="text-center mb-6">
+    <div class="text-center mb-8">
         <h1 class="header-font text-4xl font-black tracking-tighter bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 bg-clip-text text-transparent italic leading-tight">
-            LEVEL UP DASHBOARD
+            BDS CR CAMPAIGN
         </h1>
-        <p class="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mt-1">One Team | One Goal | Level Up</p>
-    </div>
-
-    <div class="mb-8 px-2">
-        <div class="flex justify-between items-end mb-2">
-            <span class="text-[10px] font-black text-yellow-500 uppercase italic tracking-widest">Weekly Team Goal</span>
-            <span id="goal-percent" class="text-[10px] font-black text-white uppercase italic">0%</span>
-        </div>
-        <div class="w-full h-4 bg-white/5 rounded-full overflow-hidden border border-white/10 p-[2px]">
-            <div id="progress-bar" class="gold-progress h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
-        </div>
-        <div class="flex justify-between mt-1 px-1">
-            <span id="current-leads-sum" class="text-[9px] font-bold text-slate-400">0 Leads</span>
-            <span class="text-[9px] font-bold text-slate-400">Target: 800</span>
-        </div>
+        <p class="text-[9px] font-medium leading-relaxed text-slate-400 mt-2 px-4 italic">
+            These are Unofficial Weekly Numbers. Official numbers will be posted as normal when payroll is being processed taking Quality and other factors into account.
+        </p>
     </div>
 
     <div class="grid grid-cols-3 gap-2 mb-8">
@@ -119,9 +102,7 @@
     <div id="leaderboard" class="space-y-3"></div>
 
     <script>
-        // UPDATED URL BELOW
         const API_URL = 'https://script.google.com/macros/s/AKfycbyQlZ1H4TiC2Ohbw8IQNdxiCw0-bUMqgeH6wkmSzPdiJzps4d9aOn7YnWWdjraTli7DeQ/exec';
-        const TEAM_GOAL = 800;
         let agents = [];
 
         async function updateDashboard() {
@@ -204,11 +185,6 @@
             document.getElementById('floor-total').innerText = totalLeads;
             document.getElementById('master-count').innerText = masters.toString().padStart(2, '0');
             document.getElementById('active-reps').innerText = activeReps;
-
-            const percentage = Math.min((totalLeads / TEAM_GOAL) * 100, 100);
-            document.getElementById('progress-bar').style.width = percentage + '%';
-            document.getElementById('goal-percent').innerText = Math.floor(percentage) + '%';
-            document.getElementById('current-leads-sum').innerText = `${totalLeads} Leads`;
         }
 
         setInterval(updateDashboard, 30000);
