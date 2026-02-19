@@ -99,15 +99,38 @@
         <div class="text-[8px] text-slate-600 font-bold uppercase italic">Weekly Sprint</div>
     </div>
 
-    <div id="leaderboard" class="space-y-3"></div>
+    <div id="leaderboard" class="space-y-3 mb-10"></div>
+
+    <div class="mt-12 mb-4 px-2">
+        <h2 class="header-font text-[10px] font-black tracking-widest text-slate-500 uppercase italic">Daily Performance</h2>
+    </div>
+    <div class="glass p-5 rounded-2xl border-t-2 border-t-blue-500">
+        <div class="flex justify-between items-center">
+            <div>
+                <div id="display-day-name" class="text-2xl font-black text-white uppercase italic tracking-tighter">Day</div>
+                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Daily Lead Count</div>
+            </div>
+            <div class="text-right">
+                <div id="daily-total" class="text-4xl font-black text-blue-400">0</div>
+            </div>
+        </div>
+    </div>
 
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbyQlZ1H4TiC2Ohbw8IQNdxiCw0-bUMqgeH6wkmSzPdiJzps4d9aOn7YnWWdjraTli7DeQ/exec';
         let agents = [];
 
+        function updateDayName() {
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const today = new Date().getDay();
+            document.getElementById('display-day-name').innerText = days[today];
+        }
+
         async function updateDashboard() {
             const btn = document.getElementById('refresh-btn');
             btn.classList.add('spin-anim');
+            
+            updateDayName();
             
             try {
                 const res = await fetch(API_URL);
@@ -185,6 +208,10 @@
             document.getElementById('floor-total').innerText = totalLeads;
             document.getElementById('master-count').innerText = masters.toString().padStart(2, '0');
             document.getElementById('active-reps').innerText = activeReps;
+            
+            // This shows the total floor leads in the daily box. 
+            // If your API provides a separate "Daily" count, you would update this variable.
+            document.getElementById('daily-total').innerText = totalLeads;
         }
 
         setInterval(updateDashboard, 30000);
