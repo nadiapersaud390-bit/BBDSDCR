@@ -75,7 +75,7 @@
             BDS CR CAMPAIGN
         </h1>
         <p class="text-[9px] font-medium leading-relaxed text-slate-400 mt-2 px-4 italic">
-            These are Unofficial Weekly Numbers. Official numbers will be posted as normal when payroll is being processed taking Quality and other factors into account.
+            Unofficial Weekly Numbers. Official numbers posted during payroll processing.
         </p>
     </div>
 
@@ -100,27 +100,29 @@
     </div>
     <div id="leaderboard" class="space-y-3 mb-12"></div>
 
-    <div class="flex justify-between items-end mb-4 px-2 pt-4 border-t border-white/5">
-        <h2 class="header-font text-[10px] font-black tracking-widest text-blue-500 uppercase italic">Daily Performance</h2>
-        <div id="display-day-name" class="text-[10px] text-white font-black uppercase italic tracking-widest">Thursday</div>
+    <div class="flex justify-between items-end mb-4 px-2 pt-6 border-t border-white/10">
+        <h2 class="header-font text-[10px] font-black tracking-widest text-orange-500 uppercase italic">Daily Leads</h2>
+        <div id="current-day-text" class="text-[10px] text-white font-black uppercase italic tracking-widest">---</div>
     </div>
+    
     <div id="daily-leaderboard" class="space-y-2 mb-10"></div>
 
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbyQlZ1H4TiC2Ohbw8IQNdxiCw0-bUMqgeH6wkmSzPdiJzps4d9aOn7YnWWdjraTli7DeQ/exec';
         let agents = [];
 
-        function updateDayName() {
+        function getTodayName() {
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            const today = new Date().getDay();
-            document.getElementById('display-day-name').innerText = days[today];
+            return days[new Date().getDay()];
         }
 
         async function updateDashboard() {
             const btn = document.getElementById('refresh-btn');
             btn.classList.add('spin-anim');
-            updateDayName();
             
+            const today = getTodayName();
+            document.getElementById('current-day-text').innerText = today;
+
             try {
                 const res = await fetch(API_URL);
                 const newData = await res.json();
@@ -130,21 +132,21 @@
                     return;
                 }
 
+                // Check for updates to trigger highlight
                 if (agents.length > 0) {
                     newData.forEach(nA => {
                         const oA = agents.find(o => o.name === nA.name);
-                        // Check if daily leads or total leads increased to trigger highlight
-                        if (oA && (nA.leads > oA.leads || (nA.dailyLeads > oA.dailyLeads))) {
-                            nA.lastUpdated = true;
-                        }
+                        const nDaily = nA.daily || nA[today] || 0;
+                        const oDaily = oA ? (oA.daily || oA[today] || 0) : 0;
+                        if (oA && (nA.leads > oA.leads || nDaily > oDaily)) nA.lastUpdated = true;
                     });
                 }
 
                 agents = newData;
-                render();
+                render(today);
                 
                 const now = new Date();
-                document.getElementById('timestamp').innerText = `Sheet Updated: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
+                document.getElementById('timestamp').innerText = `Updated: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
                 
             } catch (e) {
                 document.getElementById('timestamp').innerText = "Sync Offline";
@@ -161,12 +163,11 @@
             return { title: "ROOKIE", class: "slate-tier", icon: "fa-shield", color: "text-slate-500" };
         }
 
-        function render() {
-            // 1. RENDER WEEKLY LEADERBOARD
+        function render(today) {
             const board = document.getElementById('leaderboard');
             const dailyBoard = document.getElementById('daily-leaderboard');
-            
-            // Weekly sort
+
+            // 1. RENDER WEEKLY (By Total Leads)
             const weeklyAgents = [...agents].sort((a, b) => b.leads - a.leads);
             
             let totalLeads = 0;
@@ -201,23 +202,29 @@
                 `;
             }).join('');
 
-            // 2. RENDER DAILY LEADERBOARD (High to Low)
-            // Note: This uses 'dailyLeads' from your JSON. If your API uses a different key, change it here.
-            const dailyAgents = [...agents].sort((a, b) => (b.dailyLeads || 0) - (a.dailyLeads || 0));
+            // 2. RENDER DAILY (Sorted High to Low)
+            // This checks for a 'daily' column or a column named after the current day (e.g. 'Thursday')
+            const dailyAgents = [...agents].sort((a, b) => {
+                const bVal = b.daily || b[today] || 0;
+                const aVal = a.daily || a[today] || 0;
+                return bVal - aVal;
+            });
 
             dailyBoard.innerHTML = dailyAgents.map((agent, index) => {
-                const dCount = agent.dailyLeads || 0;
-                if (dCount === 0 && index > 5) return ''; // Optional: hide zero-performers at bottom of daily list
+                const dailyVal = agent.daily || agent[today] || 0;
+                
+                // Only show people with leads today to keep the list clean
+                if (dailyVal === 0) return '';
 
                 return `
-                    <div class="glass p-3 rounded-xl flex justify-between items-center ${agent.lastUpdated ? 'row-update' : ''}">
+                    <div class="glass p-3 px-4 rounded-xl flex justify-between items-center mb-2 border-l-2 border-l-orange-500/50">
                         <div class="flex items-center gap-3">
-                            <span class="text-xs font-black italic text-slate-500">${(index + 1)}</span>
+                            <span class="text-[10px] font-black italic text-slate-500">${index + 1}</span>
                             <div class="font-bold text-xs text-white uppercase">${agent.name}</div>
                         </div>
-                        <div class="flex items-center gap-2">
-                             <div class="text-lg font-black text-blue-400">${dCount}</div>
-                             <div class="text-[6px] text-slate-600 font-black uppercase">Daily</div>
+                        <div class="flex items-center gap-3">
+                            <div class="text-xl font-black text-orange-400">${dailyVal}</div>
+                            <div class="text-[6px] text-slate-600 font-black uppercase">Leads</div>
                         </div>
                     </div>
                 `;
