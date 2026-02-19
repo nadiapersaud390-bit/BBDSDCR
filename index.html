@@ -98,23 +98,13 @@
         <h2 class="header-font text-[10px] font-black tracking-widest text-slate-500 uppercase italic">Current Rankings</h2>
         <div class="text-[8px] text-slate-600 font-bold uppercase italic">Weekly Sprint</div>
     </div>
+    <div id="leaderboard" class="space-y-3 mb-12"></div>
 
-    <div id="leaderboard" class="space-y-3 mb-10"></div>
-
-    <div class="mt-12 mb-4 px-2">
-        <h2 class="header-font text-[10px] font-black tracking-widest text-slate-500 uppercase italic">Daily Performance</h2>
+    <div class="flex justify-between items-end mb-4 px-2 pt-4 border-t border-white/5">
+        <h2 class="header-font text-[10px] font-black tracking-widest text-blue-500 uppercase italic">Daily Performance</h2>
+        <div id="display-day-name" class="text-[10px] text-white font-black uppercase italic tracking-widest">Thursday</div>
     </div>
-    <div class="glass p-5 rounded-2xl border-t-2 border-t-blue-500">
-        <div class="flex justify-between items-center">
-            <div>
-                <div id="display-day-name" class="text-2xl font-black text-white uppercase italic tracking-tighter">Day</div>
-                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Daily Lead Count</div>
-            </div>
-            <div class="text-right">
-                <div id="daily-total" class="text-4xl font-black text-blue-400">0</div>
-            </div>
-        </div>
-    </div>
+    <div id="daily-leaderboard" class="space-y-2 mb-10"></div>
 
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbyQlZ1H4TiC2Ohbw8IQNdxiCw0-bUMqgeH6wkmSzPdiJzps4d9aOn7YnWWdjraTli7DeQ/exec';
@@ -129,7 +119,6 @@
         async function updateDashboard() {
             const btn = document.getElementById('refresh-btn');
             btn.classList.add('spin-anim');
-            
             updateDayName();
             
             try {
@@ -144,7 +133,10 @@
                 if (agents.length > 0) {
                     newData.forEach(nA => {
                         const oA = agents.find(o => o.name === nA.name);
-                        if (oA && nA.leads > oA.leads) nA.lastUpdated = true;
+                        // Check if daily leads or total leads increased to trigger highlight
+                        if (oA && (nA.leads > oA.leads || (nA.dailyLeads > oA.dailyLeads))) {
+                            nA.lastUpdated = true;
+                        }
                     });
                 }
 
@@ -170,14 +162,18 @@
         }
 
         function render() {
+            // 1. RENDER WEEKLY LEADERBOARD
             const board = document.getElementById('leaderboard');
-            agents.sort((a, b) => b.leads - a.leads);
-
+            const dailyBoard = document.getElementById('daily-leaderboard');
+            
+            // Weekly sort
+            const weeklyAgents = [...agents].sort((a, b) => b.leads - a.leads);
+            
             let totalLeads = 0;
             let masters = 0;
             let activeReps = 0;
 
-            board.innerHTML = agents.map((agent, index) => {
+            board.innerHTML = weeklyAgents.map((agent, index) => {
                 const lvl = getLevel(agent.leads);
                 totalLeads += agent.leads;
                 if(agent.leads >= 12) masters++;
@@ -199,7 +195,29 @@
                         </div>
                         <div class="text-right">
                             <div class="text-2xl font-black text-white leading-none">${agent.leads}</div>
-                            <div class="text-[7px] text-slate-500 uppercase font-bold tracking-tighter mt-1">Transfers</div>
+                            <div class="text-[7px] text-slate-500 uppercase font-bold tracking-tighter mt-1">Total</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // 2. RENDER DAILY LEADERBOARD (High to Low)
+            // Note: This uses 'dailyLeads' from your JSON. If your API uses a different key, change it here.
+            const dailyAgents = [...agents].sort((a, b) => (b.dailyLeads || 0) - (a.dailyLeads || 0));
+
+            dailyBoard.innerHTML = dailyAgents.map((agent, index) => {
+                const dCount = agent.dailyLeads || 0;
+                if (dCount === 0 && index > 5) return ''; // Optional: hide zero-performers at bottom of daily list
+
+                return `
+                    <div class="glass p-3 rounded-xl flex justify-between items-center ${agent.lastUpdated ? 'row-update' : ''}">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-black italic text-slate-500">${(index + 1)}</span>
+                            <div class="font-bold text-xs text-white uppercase">${agent.name}</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                             <div class="text-lg font-black text-blue-400">${dCount}</div>
+                             <div class="text-[6px] text-slate-600 font-black uppercase">Daily</div>
                         </div>
                     </div>
                 `;
@@ -208,10 +226,6 @@
             document.getElementById('floor-total').innerText = totalLeads;
             document.getElementById('master-count').innerText = masters.toString().padStart(2, '0');
             document.getElementById('active-reps').innerText = activeReps;
-            
-            // This shows the total floor leads in the daily box. 
-            // If your API provides a separate "Daily" count, you would update this variable.
-            document.getElementById('daily-total').innerText = totalLeads;
         }
 
         setInterval(updateDashboard, 30000);
