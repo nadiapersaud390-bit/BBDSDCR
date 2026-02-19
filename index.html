@@ -11,19 +11,25 @@
         
         body { background-color: #020617; font-family: 'Inter', sans-serif; color: white; overflow-x: hidden; }
         .header-font { font-family: 'Orbitron', sans-serif; }
+        
+        /* Tier Styling */
         .conqueror-tier { background: linear-gradient(90deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0) 100%); border-left: 4px solid #ef4444; }
         .gold-tier { background: linear-gradient(90deg, rgba(234, 179, 8, 0.1) 0%, rgba(234, 179, 8, 0) 100%); border-left: 4px solid #eab308; }
         .orange-tier { background: linear-gradient(90deg, rgba(249, 115, 22, 0.1) 0%, rgba(249, 115, 22, 0) 100%); border-left: 4px solid #f97316; }
         .blue-tier { border-left: 4px solid #3b82f6; }
         .slate-tier { border-left: 4px solid #475569; opacity: 0.8; }
+        
         .live-pulse { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
+        
         .glass { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
         .spin-anim { animation: spin 1s linear; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
         .row-update { animation: highlight 2s ease-out; }
         @keyframes highlight { 0% { background-color: rgba(59, 130, 246, 0.4); } 100% { background-color: transparent; } }
-        .tab-active { color: #f97316; border-bottom: 2px solid #f97316; }
+        
+        .tab-active { color: #f97316; border-bottom: 2px solid #f97316; font-weight: 900; }
     </style>
 </head>
 <body class="p-4 max-w-lg mx-auto pb-20">
@@ -33,7 +39,7 @@
             <span class="live-pulse"></span>
             <div class="flex flex-col">
                 <span class="text-[10px] font-black tracking-widest text-red-500 uppercase italic leading-none">Live Feed</span>
-                <span id="timestamp" class="text-[8px] text-slate-500 font-bold uppercase mt-1">Waiting for data...</span>
+                <span id="timestamp" class="text-[8px] text-slate-500 font-bold uppercase mt-1">Initialising...</span>
             </div>
         </div>
         <button onclick="updateDashboard()" id="refresh-btn" class="glass p-2 px-3 rounded-lg hover:bg-white/10 transition-all active:scale-95">
@@ -66,14 +72,16 @@
     </div>
 
     <div class="flex border-b border-white/10 mb-6">
-        <button onclick="switchTab('weekly')" id="tab-weekly" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest tab-active">Weekly Sprint</button>
-        <button onclick="switchTab('daily')" id="tab-daily" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Daily Performance</button>
+        <button onclick="switchTab('weekly')" id="tab-weekly" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest tab-active transition-all">Weekly Sprint</button>
+        <button onclick="switchTab('daily')" id="tab-daily" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-all">Daily Performance</button>
     </div>
 
     <div id="leaderboard" class="space-y-3"></div>
 
     <script>
-        const API_URL = 'https://script.google.com/macros/s/AKfycbyQlZ1H4TiC2Ohbw8IQNdxiCw0-bUMqgeH6wkmSzPdiJzps4d9aOn7YnWWdjraTli7DeQ/exec';
+        // Updated with your new App Script URL
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwDD_1dKcWc3ImDbWYQ5Cxcc6IgvzIcHeAW9QQOLDtKUdIKYPk_T4AZeif_RKrIkc01TA/exec';
+        
         let agents = [];
         let currentView = 'weekly';
 
@@ -84,17 +92,22 @@
                 const res = await fetch(API_URL);
                 const newData = await res.json();
                 
+                // Highlight rows that increased since last sync
                 if (agents.length > 0) {
                     newData.forEach(nA => {
-                        const oA = agents.find(o => (o.berbice || o.name) === (nA.berbice || nA.name));
+                        const oA = agents.find(o => o.name === nA.name);
                         if (oA && (nA.leads > oA.leads || nA.transfer > oA.transfer)) nA.lastUpdated = true;
                     });
                 }
+                
                 agents = newData;
                 render();
-                document.getElementById('timestamp').innerText = `Synced: ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                
+                const now = new Date();
+                document.getElementById('timestamp').innerText = `Synced: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
             } catch (e) {
                 document.getElementById('timestamp').innerText = "Sync Offline";
+                console.error("Fetch error:", e);
             } finally {
                 setTimeout(() => btn.classList.remove('spin-anim'), 1000);
             }
@@ -118,34 +131,35 @@
         function render() {
             const board = document.getElementById('leaderboard');
             
-            // SORTING LOGIC
+            // SORTING LOGIC: Sort by transfer if daily, by leads if weekly
             const sorted = [...agents].sort((a, b) => {
-                if (currentView === 'daily') {
-                    return (Number(b.transfer) || 0) - (Number(a.transfer) || 0);
-                }
-                return (Number(b.leads) || 0) - (Number(a.leads) || 0);
+                const valA = currentView === 'daily' ? (Number(a.transfer) || 0) : (Number(a.leads) || 0);
+                const valB = currentView === 'daily' ? (Number(b.transfer) || 0) : (Number(b.leads) || 0);
+                return valB - valA;
             });
 
             let totalLeads = 0, masters = 0, activeReps = 0;
 
             board.innerHTML = sorted.map((agent, index) => {
-                // Map "berbice" to Name and "transfer" to Lead Amount
-                const name = agent.berbice || agent.name || "Unknown";
+                const name = agent.name || "Unknown";
                 const weeklyLeads = Number(agent.leads || 0);
                 const dailyLeads = Number(agent.transfer || 0);
                 const displayVal = currentView === 'daily' ? dailyLeads : weeklyLeads;
                 
-                const lvl = getLevel(weeklyLeads);
+                // Track global stats based on weekly numbers
                 totalLeads += weeklyLeads;
                 if(weeklyLeads >= 12) masters++;
                 if(weeklyLeads > 0) activeReps++;
 
+                // If in daily view, don't show reps with 0 for today
                 if (currentView === 'daily' && dailyLeads === 0) return '';
+
+                const lvl = getLevel(weeklyLeads);
 
                 return `
                     <div class="glass p-4 rounded-xl flex justify-between items-center transition-all duration-700 ${lvl.class} ${agent.lastUpdated ? 'row-update' : ''}">
                         <div class="flex items-center gap-4">
-                            <span class="text-lg font-black italic ${index < 5 ? 'text-white' : 'text-slate-700'}">
+                            <span class="text-lg font-black italic ${index < 3 ? 'text-white' : 'text-slate-700'}">
                                 ${(index + 1).toString().padStart(2, '0')}
                             </span>
                             <div>
@@ -169,6 +183,7 @@
             document.getElementById('active-reps').innerText = activeReps;
         }
 
+        // Auto-refresh every 30 seconds
         setInterval(updateDashboard, 30000);
         updateDashboard();
     </script>
