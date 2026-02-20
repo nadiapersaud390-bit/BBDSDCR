@@ -26,9 +26,6 @@
         .spin-anim { animation: spin 1s linear; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
-        .row-update { animation: highlight 2s ease-out; }
-        @keyframes highlight { 0% { background-color: rgba(59, 130, 246, 0.4); } 100% { background-color: transparent; } }
-        
         .tab-active { color: #f97316; border-bottom: 2px solid #f97316; font-weight: 900; }
     </style>
 </head>
@@ -51,8 +48,8 @@
         <h1 class="header-font text-4xl font-black tracking-tighter bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 bg-clip-text text-transparent italic leading-tight">
             BDS CR CAMPAIGN
         </h1>
-        <p class="text-[9px] font-medium leading-relaxed text-slate-400 mt-2 px-4 italic">
-            Official Daily & Weekly Live Rankings
+        <p class="text-[9px] font-medium leading-relaxed text-slate-400 mt-2 px-4 italic uppercase tracking-widest">
+            Daily & Weekly Live Rankings
         </p>
     </div>
 
@@ -73,14 +70,13 @@
 
     <div class="flex border-b border-white/10 mb-6">
         <button onclick="switchTab('weekly')" id="tab-weekly" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest tab-active transition-all">Weekly Sprint</button>
-        <button onclick="switchTab('daily')" id="tab-daily" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-all">Daily Performance</button>
+        <button onclick="switchTab('daily')" id="tab-daily" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-all">Daily</button>
     </div>
 
     <div id="leaderboard" class="space-y-3"></div>
 
     <script>
-        // Updated with your new App Script URL
-        const API_URL = 'https://script.google.com/macros/s/AKfycbwDD_1dKcWc3ImDbWYQ5Cxcc6IgvzIcHeAW9QQOLDtKUdIKYPk_T4AZeif_RKrIkc01TA/exec';
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwVUG-17XGA-YLazLV0xNTJsLdf37vZfujswa0wkEPuKmSzwWQJvE-LSufs4-ZDMLQhtA/exec';
         
         let agents = [];
         let currentView = 'weekly';
@@ -90,24 +86,12 @@
             btn.classList.add('spin-anim');
             try {
                 const res = await fetch(API_URL);
-                const newData = await res.json();
-                
-                // Highlight rows that increased since last sync
-                if (agents.length > 0) {
-                    newData.forEach(nA => {
-                        const oA = agents.find(o => o.name === nA.name);
-                        if (oA && (nA.leads > oA.leads || nA.transfer > oA.transfer)) nA.lastUpdated = true;
-                    });
-                }
-                
-                agents = newData;
+                agents = await res.json();
                 render();
-                
                 const now = new Date();
                 document.getElementById('timestamp').innerText = `Synced: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
             } catch (e) {
                 document.getElementById('timestamp').innerText = "Sync Offline";
-                console.error("Fetch error:", e);
             } finally {
                 setTimeout(() => btn.classList.remove('spin-anim'), 1000);
             }
@@ -131,39 +115,35 @@
         function render() {
             const board = document.getElementById('leaderboard');
             
-            // SORTING LOGIC: Sort by transfer if daily, by leads if weekly
+            // Sort by current selection
             const sorted = [...agents].sort((a, b) => {
                 const valA = currentView === 'daily' ? (Number(a.transfer) || 0) : (Number(a.leads) || 0);
                 const valB = currentView === 'daily' ? (Number(b.transfer) || 0) : (Number(b.leads) || 0);
                 return valB - valA;
             });
 
-            let totalLeads = 0, masters = 0, activeReps = 0;
+            let totalWeeklyLeads = 0, masters = 0, activeReps = 0;
 
             board.innerHTML = sorted.map((agent, index) => {
-                const name = agent.name || "Unknown";
                 const weeklyLeads = Number(agent.leads || 0);
                 const dailyLeads = Number(agent.transfer || 0);
                 const displayVal = currentView === 'daily' ? dailyLeads : weeklyLeads;
                 
                 // Track global stats based on weekly numbers
-                totalLeads += weeklyLeads;
+                totalWeeklyLeads += weeklyLeads;
                 if(weeklyLeads >= 12) masters++;
                 if(weeklyLeads > 0) activeReps++;
-
-                // If in daily view, don't show reps with 0 for today
-                if (currentView === 'daily' && dailyLeads === 0) return '';
 
                 const lvl = getLevel(weeklyLeads);
 
                 return `
-                    <div class="glass p-4 rounded-xl flex justify-between items-center transition-all duration-700 ${lvl.class} ${agent.lastUpdated ? 'row-update' : ''}">
+                    <div class="glass p-4 rounded-xl flex justify-between items-center ${lvl.class}">
                         <div class="flex items-center gap-4">
                             <span class="text-lg font-black italic ${index < 3 ? 'text-white' : 'text-slate-700'}">
                                 ${(index + 1).toString().padStart(2, '0')}
                             </span>
                             <div>
-                                <div class="font-bold text-sm tracking-tight text-white uppercase">${name}</div>
+                                <div class="font-bold text-sm tracking-tight text-white uppercase">${agent.name}</div>
                                 <div class="flex items-center gap-1 mt-0.5">
                                     <i class="fas ${lvl.icon} text-[8px] ${lvl.color}"></i>
                                     <div class="text-[8px] font-black uppercase tracking-widest ${lvl.color}">${lvl.title} LEVEL</div>
@@ -172,18 +152,17 @@
                         </div>
                         <div class="text-right">
                             <div class="text-2xl font-black ${currentView === 'daily' ? 'text-orange-400' : 'text-white'} leading-none">${displayVal}</div>
-                            <div class="text-[7px] text-slate-500 uppercase font-bold tracking-tighter mt-1">${currentView === 'daily' ? 'Today' : 'Transfers'}</div>
+                            <div class="text-[7px] text-slate-500 uppercase font-bold tracking-tighter mt-1">${currentView === 'daily' ? 'Daily' : 'Total'}</div>
                         </div>
                     </div>
                 `;
             }).join('');
 
-            document.getElementById('floor-total').innerText = totalLeads;
+            document.getElementById('floor-total').innerText = totalWeeklyLeads;
             document.getElementById('master-count').innerText = masters.toString().padStart(2, '0');
             document.getElementById('active-reps').innerText = activeReps;
         }
 
-        // Auto-refresh every 30 seconds
         setInterval(updateDashboard, 30000);
         updateDashboard();
     </script>
